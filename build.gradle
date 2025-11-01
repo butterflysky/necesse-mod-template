@@ -13,8 +13,92 @@ project.ext.modDescription = "Describe your mod here."
 project.ext.author = "YourName"
 project.ext.clientside = true
 
-// Set this to your Necesse install directory
-def gameDirectory = System.getenv('NECESSE_DIR') ?: "/home/you/.steam/steam/steamapps/common/Necesse"
+// Auto-discover Necesse game directory from Steam libraries
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+
+def findNecesseGameDirectory() {
+    // First check environment variable override
+    def envDir = System.getenv('NECESSE_DIR')
+    if (envDir) {
+        def dir = file(envDir)
+        if (dir.exists() && new File(dir, "Necesse.jar").exists()) {
+            println "Using Necesse directory from NECESSE_DIR: ${envDir}"
+            return envDir
+        } else {
+            println "WARNING: NECESSE_DIR is set but invalid: ${envDir}"
+        }
+    }
+
+    // Check gradle.properties override
+    if (project.hasProperty('necesseGameDir')) {
+        def dir = file(project.property('necesseGameDir'))
+        if (dir.exists() && new File(dir, "Necesse.jar").exists()) {
+            println "Using Necesse directory from gradle.properties: ${project.property('necesseGameDir')}"
+            return project.property('necesseGameDir')
+        }
+    }
+
+    def os = DefaultNativePlatform.currentOperatingSystem
+    def userHome = System.getProperty('user.home')
+    def steamLibraryPaths = []
+
+    // Platform-specific Steam installation paths
+    if (os.isWindows()) {
+        // Windows
+        steamLibraryPaths += [
+            'C:\\Program Files (x86)\\Steam',
+            'C:\\Program Files\\Steam',
+            "${userHome}\\Documents\\Steam"
+        ]
+    } else if (os.isMacOsX()) {
+        // macOS
+        steamLibraryPaths += [
+            "${userHome}/Library/Application Support/Steam"
+        ]
+    } else if (os.isLinux()) {
+        // Linux
+        steamLibraryPaths += [
+            "${userHome}/.steam/steam",
+            "${userHome}/.local/share/Steam",
+            "${userHome}/.var/app/com.valvesoftware.Steam/.local/share/Steam" // Flatpak
+        ]
+    }
+
+    // Check each Steam library for Necesse
+    def necessePath = 'steamapps/common/Necesse'
+    for (def steamPath : steamLibraryPaths) {
+        def steamDir = file(steamPath)
+        if (!steamDir.exists()) continue
+
+        // Check main library
+        def gameDir = file("${steamPath}/${necessePath}")
+        if (gameDir.exists() && new File(gameDir, "Necesse.jar").exists()) {
+            println "Found Necesse at: ${gameDir.absolutePath}"
+            return gameDir.absolutePath
+        }
+
+        // Parse libraryfolders.vdf for additional Steam library locations
+        def vdfFile = file("${steamPath}/steamapps/libraryfolders.vdf")
+        if (vdfFile.exists()) {
+            vdfFile.eachLine { line ->
+                def matcher = line =~ /"path"\s+"([^"]+)"/
+                if (matcher.find()) {
+                    def libraryPath = matcher.group(1).replace('\\\\', '/')
+                    def libGameDir = file("${libraryPath}/${necessePath}")
+                    if (libGameDir.exists() && new File(libGameDir, "Necesse.jar").exists()) {
+                        println "Found Necesse at: ${libGameDir.absolutePath}"
+                        return libGameDir.absolutePath
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback: return null to trigger error below
+    return null
+}
+
+def gameDirectory = findNecesseGameDirectory()
 
 def jarName = "${project.ext.modName.replace(" ", "")}-${project.ext.gameVersion}-${project.ext.modVersion}"
 def modOutputDir = file("$buildDir/mod")
