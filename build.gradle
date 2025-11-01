@@ -273,7 +273,8 @@ eclipse { classpath { downloadSources = true } }
 
 // Keep publication version in sync at execution time
 tasks.named('publishNecessePublicationToMavenLocal') {
-    doFirst { publishing.publications.necesse.version = project.ext.gameVersion }
+    def gameVersionValue = project.ext.gameVersion  // Capture at configuration time
+    doFirst { publishing.publications.necesse.version = gameVersionValue }
 }
 
 // Friendly alias that avoids the verbose 'Publication' name
@@ -287,8 +288,9 @@ tasks.register('updateGameVersion') { t ->
     group = "necesse"
     description = "Updates project.ext.gameVersion from decompiled GameInfo.java in the sources JAR"
     dependsOn('decompileNecesseSourcesJar')
+    def gameVersionValue = project.ext.gameVersion  // Capture at configuration time
     doLast {
-        def sourcesJar = new File(sourcesOutDir.get().asFile, "necesse-${project.ext.gameVersion}-sources.jar")
+        def sourcesJar = new File(sourcesOutDir.get().asFile, "necesse-${gameVersionValue}-sources.jar")
         if (!sourcesJar.exists()) throw new GradleException("Sources JAR not found. Run decompileNecesseSourcesJar.")
         def zip = new java.util.zip.ZipFile(sourcesJar)
         def entry = zip.getEntry('necesse/engine/GameInfo.java')
