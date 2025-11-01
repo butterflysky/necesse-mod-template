@@ -10,7 +10,7 @@ This template provides a minimal Gradle build for a new Necesse mod, including:
 ### Quick start
 - Copy this folder to a new repo (or wherever you keep your mod sources).
 - Edit `settings.gradle` and `build.gradle` values under the “Change the values” section.
-- Set `gameDirectory` in `build.gradle` to your Necesse install path.
+- If your Necesse install is in a non-standard location, set `gameDirectory` in `build.gradle` to your Necesse install path.
 - Run `./gradlew devSetup` to decompile sources and publish to `~/.m2`.
 - Build your mod: `./gradlew buildModJar`.
 
